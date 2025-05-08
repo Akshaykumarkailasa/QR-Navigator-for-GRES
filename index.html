@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GRES Explorer</title>
   <style>
+    /* General Styles */
     body {
       margin: 0;
       font-family: Arial, sans-serif;
@@ -36,7 +37,7 @@
 
     #map {
       width: 100%;
-      height: 60vh;
+      height: 60vh; /* Adjust for mobile-friendly height */
       border: 2px solid #ccc;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
       border-radius: 8px;
@@ -92,13 +93,14 @@
       border-radius: 5px;
       cursor: pointer;
       transition: background-color 0.3s;
-      min-width: 150px;
+      min-width: 150px; /* Ensure buttons have a minimum width for mobile */
     }
 
     button:hover {
       background-color: #2980b9;
     }
 
+    /* Responsive Design for Smaller Screens */
     @media (max-width: 900px) {
       #map-container {
         flex-direction: column;
@@ -109,8 +111,8 @@
       }
 
       button {
-        font-size: 16px;
-        padding: 12px;
+        font-size: 16px; /* Adjust button font size for mobile */
+        padding: 12px; /* Make buttons more tap-friendly */
       }
     }
   </style>
@@ -172,7 +174,6 @@
     map = new google.maps.Map(document.getElementById("map"), {
       center: { lat: 17.5205, lng: 78.367 },
       zoom: 17,
-      gestureHandling: 'greedy',  // <- this line allows 1-finger drag on mobile
     });
     directionsService = new google.maps.DirectionsService();
     directionsRenderer = new google.maps.DirectionsRenderer({ map: map });
@@ -256,9 +257,11 @@
           document.getElementById("distance").innerText = `Distance: ${leg.distance.text}`;
           document.getElementById("duration").innerText = `Time: ${leg.duration.text}`;
 
+          // Remove previous markers if they exist
           if (startMarker) startMarker.setMap(null);
           if (destMarker) destMarker.setMap(null);
 
+          // Add new markers
           startMarker = new google.maps.Marker({
             position: startCoords,
             map: map,
@@ -296,9 +299,11 @@
     map.setCenter({ lat: 17.5205, lng: 78.367 });
     map.setZoom(17);
 
+    // Reset dropdown selections
     document.getElementById("start").selectedIndex = 0;
     document.getElementById("destination").selectedIndex = 0;
 
+    // Remove blue and green markers
     if (startMarker) {
       startMarker.setMap(null);
       startMarker = null;
