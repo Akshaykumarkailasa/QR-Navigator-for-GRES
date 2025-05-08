@@ -170,11 +170,18 @@
     { name: "AIML Block", lat: 17.5218, lng: 78.3670 }
   ];
 
-  function initMap() {
-    map = new google.maps.Map(document.getElementById("map"), {
-      center: { lat: 17.5205, lng: 78.367 },
-      zoom: 17,
-    });
+ function initMap() {
+  map = new google.maps.Map(document.getElementById("map"), {
+    center: { lat: 17.5205, lng: 78.367 },
+    zoom: 17,
+    gestureHandling: 'greedy',
+  });
+  directionsService = new google.maps.DirectionsService();
+  directionsRenderer = new google.maps.DirectionsRenderer({ map: map });
+  
+  // (rest of your function remains unchanged)
+}
+
     directionsService = new google.maps.DirectionsService();
     directionsRenderer = new google.maps.DirectionsRenderer({ map: map });
 
