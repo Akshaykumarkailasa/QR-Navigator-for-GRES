@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GRES Explorer</title>
+  <style>
+    /* General Styles */
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #f4f6f8;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    header {
+      width: 100%;
+      padding: 20px 0;
+      background-color: #2c3e50;
+      color: #ffffff;
+      text-align: center;
+      font-size: 28px;
+      font-weight: bold;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+
+    #map-container {
+      display: flex;
+      flex-direction: column;
+      width: 90%;
+      margin-top: 20px;
+      gap: 20px;
+    }
+
+    #map {
+      width: 100%;
+      height: 60vh; /* Adjust for mobile-friendly height */
+      border: 2px solid #ccc;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      border-radius: 8px;
+      background-color: #eaeaea;
+    }
+
+    #controls {
+      width: 100%;
+      padding: 20px;
+      background-color: #ffffff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      border-radius: 8px;
+    }
+
+    .select-label {
+      font-size: 16px;
+      font-weight: 600;
+      color: #444;
+    }
+
+    select {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background-color: #2c3e50;
+      color: white;
+      transition: border-color 0.3s ease;
+      outline: none;
+    }
+
+    select:hover, select:focus {
+      border-color: #3498db;
+    }
+
+    #distance-time {
+      margin-top: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    button {
+      font-size: 18px;
+      padding: 15px;
+      background-color: #3498db;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+      min-width: 150px; /* Ensure buttons have a minimum width for mobile */
+    }
+
+    button:hover {
+      background-color: #2980b9;
+    }
+
+    /* Responsive Design for Smaller Screens */
+    @media (max-width: 900px) {
+      #map-container {
+        flex-direction: column;
+      }
+
+      #map, #controls {
+        width: 100%;
+      }
+
+      button {
+        font-size: 16px; /* Adjust button font size for mobile */
+        padding: 12px; /* Make buttons more tap-friendly */
+      }
+    }
+  </style>
+</head>
+<body>
+
+<header>GRES Explorer</header>
+
+<div id="map-container">
+  <div id="map"></div>
+
+  <div id="controls">
+    <div class="select-label">Start Location</div>
+    <select id="start">
+      <option value="">-- Select --</option>
+    </select>
+
+    <div class="select-label">Destination</div>
+    <select id="destination">
+      <option value="">-- Select --</option>
+    </select>
+
+    <div id="distance-time">
+      <div id="distance">Distance: 0 km</div>
+      <div id="duration">Time: 0 mins</div>
+    </div>
+
+    <button id="navigate-btn">Open in Google Maps</button>
+    <button id="recenter-btn">Recenter Map</button>
+    <button id="reset-btn">Reset Map</button>
+  </div>
+</div>
+
+<script>
+  let map, directionsService, directionsRenderer;
+  let currentMarker;
+  let startMarker = null;
+  let destMarker = null;
+
+  const locationData = [
+    { name: "Current Location", lat: null, lng: null },
+    { name: "CSE Block", lat: 17.5216, lng: 78.3674 },
+    { name: "Mechanical/Civil/EEE Block", lat: 17.5212, lng: 78.3672 },
+    { name: "EEE Block", lat: 17.5211, lng: 78.3665 },
+    { name: "IT Block", lat: 17.5204, lng: 78.3674 },
+    { name: "Canteen", lat: 17.5204, lng: 78.3666 },
+    { name: "Gokaraju Lailavathi Block", lat: 17.5210, lng: 78.3656 },
+    { name: "Bank", lat: 17.5190, lng: 78.3682 },
+    { name: "Pharmacy", lat: 17.5206, lng: 78.3688 },
+    { name: "Library", lat: 17.5205, lng: 78.3675 },
+    { name: "Halls 1 and 2", lat: 17.5192, lng: 78.3679 },
+    { name: "Volleyball Court", lat: 17.5194, lng: 78.3679 },
+    { name: "Cricket Ground", lat: 17.5194, lng: 78.3663 },
+    { name: "Open Air Stadium", lat: 17.5207, lng: 78.3667 },
+    { name: "AIML Block", lat: 17.5218, lng: 78.3670 }
+  ];
+
+  function initMap() {
+    map = new google.maps.Map(document.getElementById("map"), {
+      center: { lat: 17.5205, lng: 78.367 },
+      zoom: 17,
+    });
+    directionsService = new google.maps.DirectionsService();
+    directionsRenderer = new google.maps.DirectionsRenderer({ map: map });
+
+    populateDropdowns();
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const userPos = { lat: position.coords.latitude, lng: position.coords.longitude };
+        locationData[0].lat = userPos.lat;
+        locationData[0].lng = userPos.lng;
+
+        currentMarker = new google.maps.Marker({
+          position: userPos,
+          map: map,
+          icon: "http://maps.google.com/mapfiles/ms/icons/yellow-dot.png",
+          title: "You are here"
+        });
+
+        map.setCenter(userPos);
+      },
+      (error) => {
+        console.warn("Geolocation error:", error.message);
+        alert("Could not get your location. Using default center.");
+      }
+    );
+
+    locationData.forEach(loc => {
+      if (loc.lat && loc.lng && loc.name !== "Current Location") {
+        new google.maps.Marker({
+          position: { lat: loc.lat, lng: loc.lng },
+          map: map,
+          title: loc.name
+        });
+      }
+    });
+  }
+
+  function populateDropdowns() {
+    const startSelect = document.getElementById("start");
+    const destSelect = document.getElementById("destination");
+
+    locationData.forEach(loc => {
+      const startOpt = document.createElement("option");
+      startOpt.value = loc.name;
+      startOpt.text = loc.name;
+      startSelect.appendChild(startOpt);
+
+      if (loc.name !== "Current Location") {
+        const destOpt = document.createElement("option");
+        destOpt.value = loc.name;
+        destOpt.text = loc.name;
+        destSelect.appendChild(destOpt);
+      }
+    });
+  }
+
+  function getCoordinates(name) {
+    const loc = locationData.find(l => l.name === name);
+    return loc ? { lat: loc.lat, lng: loc.lng } : null;
+  }
+
+  function updateRoute() {
+    const startName = document.getElementById("start").value;
+    const destName = document.getElementById("destination").value;
+
+    if (!startName || !destName) return;
+
+    const startCoords = getCoordinates(startName);
+    const destCoords = getCoordinates(destName);
+
+    if (startCoords && destCoords) {
+      directionsService.route({
+        origin: startCoords,
+        destination: destCoords,
+        travelMode: google.maps.TravelMode.WALKING,
+      }, (result, status) => {
+        if (status === google.maps.DirectionsStatus.OK) {
+          directionsRenderer.setDirections(result);
+          const leg = result.routes[0].legs[0];
+          document.getElementById("distance").innerText = `Distance: ${leg.distance.text}`;
+          document.getElementById("duration").innerText = `Time: ${leg.duration.text}`;
+
+          // Remove previous markers if they exist
+          if (startMarker) startMarker.setMap(null);
+          if (destMarker) destMarker.setMap(null);
+
+          // Add new markers
+          startMarker = new google.maps.Marker({
+            position: startCoords,
+            map: map,
+            icon: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+            title: "Start"
+          });
+
+          destMarker = new google.maps.Marker({
+            position: destCoords,
+            map: map,
+            icon: "http://maps.google.com/mapfiles/ms/icons/green-dot.png",
+            title: "Destination"
+          });
+        } else {
+          alert("Could not calculate route.");
+        }
+      });
+    }
+  }
+
+  document.getElementById("start").addEventListener("change", updateRoute);
+  document.getElementById("destination").addEventListener("change", updateRoute);
+
+  document.getElementById("recenter-btn").addEventListener("click", () => {
+    if (currentMarker) {
+      map.setCenter(currentMarker.getPosition());
+      map.setZoom(17);
+    }
+  });
+
+  document.getElementById("reset-btn").addEventListener("click", () => {
+    directionsRenderer.setDirections({ routes: [] });
+    document.getElementById("distance").innerText = "Distance: 0 km";
+    document.getElementById("duration").innerText = "Time: 0 mins";
+    map.setCenter({ lat: 17.5205, lng: 78.367 });
+    map.setZoom(17);
+
+    // Reset dropdown selections
+    document.getElementById("start").selectedIndex = 0;
+    document.getElementById("destination").selectedIndex = 0;
+
+    // Remove blue and green markers
+    if (startMarker) {
+      startMarker.setMap(null);
+      startMarker = null;
+    }
+    if (destMarker) {
+      destMarker.setMap(null);
+      destMarker = null;
+    }
+  });
+
+  document.getElementById("navigate-btn").addEventListener("click", () => {
+    const startName = document.getElementById("start").value;
+    const destName = document.getElementById("destination").value;
+
+    if (!startName || !destName) {
+      alert("Please select both start and destination.");
+      return;
+    }
+
+    const startCoords = getCoordinates(startName);
+    const destCoords = getCoordinates(destName);
+
+    if (startCoords && destCoords) {
+      const url = `https://www.google.com/maps/dir/?api=1&origin=${startCoords.lat},${startCoords.lng}&destination=${destCoords.lat},${destCoords.lng}&travelmode=walking`;
+      window.open(url, '_blank');
+    }
+  });
+
+  window.initMap = initMap;
+</script>
+
+<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAOW1eMDavJtJVlkWeGct_zNScZPKjhCsM&callback=initMap"></script>
+
+</body>
+</html>
